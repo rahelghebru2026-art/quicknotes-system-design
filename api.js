@@ -257,7 +257,7 @@ async function deleteNote(id) {
         renderNotes();
 
         setStatus(
-            `Note removed from the current list (status ${result.status}).`,
+            'Note removed from the current list (status ${result.status}).',
             "success"
         );
     } catch (error) {

@@ -161,3 +161,45 @@ Queues keep slow background work out of the main request path, but jobs may comp
 Deploy multiple app servers behind a health-checking load balancer, preferably across separate failure domains. Use a highly available cache configuration, managed database high availability, automated backups, and tested recovery procedures. Configure monitoring and a documented database failover process.
 
 A read replica alone does not guarantee automatic failover. The primary database remains a potential single point of failure unless high availability and failover are configured and tested.
+
+## 9. Redundancy and Failover
+
+A production QuickNotes system must avoid single points of failure (SPOFs). A single point of failure is a component whose failure can make the entire application unavailable.
+
+### 9.1 Load Balancer
+
+Deploy the application behind a redundant load-balancing service. Health checks should detect unhealthy application servers and stop routing requests to them.
+
+If one load balancer instance fails, a managed or redundant load-balancing service should continue routing traffic.
+
+### 9.2 Application Servers
+
+Run at least two application server instances across separate availability zones where possible.
+
+If one server fails, the load balancer redirects requests to healthy instances. Application servers should be stateless so that requests can be handled by any healthy instance.
+
+### 9.3 Database Availability
+
+Use a primary PostgreSQL database with a standby replica and automated failover.
+
+If the primary database fails, the system can promote a healthy standby replica. Database backups and tested restoration procedures provide additional protection against data loss.
+
+Read replicas may serve eligible read queries, but they are not automatically substitutes for a writable primary database.
+
+### 9.4 Cache and Message Queue
+
+The cache should be treated as a performance optimization rather than the only source of truth. If the cache becomes unavailable, the application can temporarily read from the database, subject to capacity limits.
+
+Use a durable message queue with appropriate redundancy for background jobs. Workers should retry transient failures and handle duplicate job delivery safely.
+
+### 9.5 Monitoring and Recovery
+
+Monitor application health, database availability, error rates, request latency, queue depth, and resource usage.
+
+Configure alerts for service failures and regularly test recovery procedures, including database failover and backup restoration.
+
+### 9.6 Trade-offs
+
+Redundancy improves availability but increases infrastructure costs and operational complexity. Database replication can also introduce replication lag, so the system must decide which operations require strongly consistent reads.
+
+The design reduces the risk of downtime but cannot guarantee uninterrupted service. Recovery depends on health checks, failover configuration, backups, monitoring, and regular testing.
