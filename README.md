@@ -1,30 +1,56 @@
-# QuickNotes System Design & API Client
+# QuickNotes System Design
 
-## Description
-QuickNotes is a full-stack system design and client application that allows users to seamlessly create, view, and delete notes. Built as part of a comprehensive system design capstone, this project combines a robust RESTful API client with professional architecture and data modeling documentation.
+## Project description
 
----
+QuickNotes is a learning project demonstrating how a browser client communicates with a REST API and how a production notes service could be designed for one million users.
 
-## How to Run the API Client
-Because this project utilizes ES modules and standard browser `fetch`, you can run the client locally using any static file server:
+The client uses JSONPlaceholder to demonstrate GET, POST, and DELETE operations. The documentation describes the proposed production API, relational database model, and scalable architecture.
+
+## Project structure
+
+```text
+quicknotes-system-design/
+├── index.html
+├── style.css
+├── api.js
+├── README.md
+└── docs/
+    ├── api-design.md
+    ├── data-model.md
+    └── architecture.md
+```
+
+## How to run the client
+
 1. Clone or download this repository.
-2. Open your terminal in the root project folder.
-3. Run a local server (e.g., using Python or Node.js):
-   - **Python 3:** `python3 -m http.server 8000`
-   - **Node.js (npx):** `npx serve`
-4. Open your web browser and navigate to `http://localhost:8000` (or the port provided by your server).
-5. Interact with the app: click **"Load Notes"** to fetch posts from JSONPlaceholder, or fill out the form to create a new note.
+2. Open the project folder in Visual Studio Code.
+3. Open `index.html` using the Live Server extension.
+4. Click **Load notes** to fetch ten sample posts.
+5. Enter a title and optional body, then click **Create note**.
+6. Click **Delete** beside a note to remove it from the current display.
 
----
+An internet connection is required for JSONPlaceholder.
 
-## Documentation Links
-- **API Design:** [`docs/api-design.md`](docs/api-design.md)
-- **Data Model:** [`docs/data-model.md`](docs/data-model.md)
-- **Architecture & Scaling Plan:** [`docs/architecture.md`](docs/architecture.md)
+**Demo limitation:** JSONPlaceholder simulates creating and deleting posts. New posts and deletions are not permanently stored by the service. This client updates its displayed list after successful responses, but it is not connected to a persistent QuickNotes backend.
 
----
+## Design documents
 
-## What I Learned
-1. **Robust Error Handling & State Management:** Implementing loading, success, error, and empty states alongside async/try-catch blocks taught me how to build resilient, user-friendly web interfaces that gracefully handle network failures.
-2. **Security & XSS Prevention:** Adhering strictly to `textContent` rather than `innerHTML` when inserting user-generated text reinforced critical web security practices against Cross-Site Scripting (XSS) vulnerabilities.
-3. **Scalable System Architecture:** Designing for 1 million users deepened my understanding of read-to-write ratio optimization, caching layers (Redis), read replicas, and asynchronous background worker queues.
+* [API Design](docs/api-design.md)
+* [Data Model](docs/data-model.md)
+* [Architecture](docs/architecture.md)
+
+## What I learned
+
+* How to send GET, POST, and DELETE requests using JavaScript `fetch`.
+* How to handle HTTP errors and show loading, success, error, and empty states.
+* Why user-provided content should be displayed with `textContent`.
+* How REST endpoints use HTTP methods and status codes.
+* How relational tables, primary keys, foreign keys, and JOIN queries work.
+* How load estimates influence caching, database replication, and horizontal scaling.
+
+## Future improvements
+
+* Replace JSONPlaceholder with a persistent backend.
+* Add authentication and authorization.
+* Implement note search, pagination, and tags.
+* Add automated tests and production monitoring.
