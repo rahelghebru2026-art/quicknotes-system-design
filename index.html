@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuickNotes App</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="api.js" defer></script>
+</head>
+<body>
+    <header>
+        <h1>QuickNotes</h1>
+        <p>Capture and manage your thoughts efficiently.</p>
+    </header>
+
+    <main>
+        <!-- Status Message Element -->
+        <p id="status" class="status-hidden" aria-live="polite"></p>
+
+        <!-- Load Notes Section -->
+        <section class="action-section">
+            <button id="load-btn">Load Notes</button>
+        </section>
+
+        <!-- Create Note Form -->
+        <section class="form-section">
+            <h2>Create New Note</h2>
+            <form id="note-form">
+                <div class="form-group">
+                    <label for="title-input">Title (required, max 100 chars):</label>
+                    <input type="text" id="title-input" maxlength="100" placeholder="Note title..." required>
+                </div>
+                <div class="form-group">
+                    <label for="body-input">Body:</label>
+                    <textarea id="body-input" rows="4" placeholder="Write your note here..."></textarea>
+                </div>
+                <button type="submit" id="submit-btn">Add Note</button>
+            </form>
+        </section>
+
+        <!-- Notes List Section -->
+        <section class="list-section">
+            <h2>Your Notes</h2>
+            <ul id="notes-list">
+                <!-- Notes will be dynamically injected here -->
+            </ul>
+        </section>
+    </main>
+</body>
+</html>
