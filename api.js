@@ -1,240 +1,283 @@
-const API_URL = 'https://jsonplaceholder.typicode.com/posts';
+const API_URL = "https://jsonplaceholder.typicode.com/posts";
 
-// DOM Elements
-const loadBtn = document.getElementById('load-btn');
-const submitBtn = document.getElementById('submit-btn');
-const noteForm = document.getElementById('note-form');
-const titleInput = document.getElementById('title-input');
-const bodyInput = document.getElementById('body-input');
-const notesList = document.getElementById('notes-list');
-const statusP = document.getElementById('status');
+const loadBtn = document.getElementById("load-btn");
+const statusElement = document.getElementById("status");
+const noteForm = document.getElementById("note-form");
+const titleInput = document.getElementById("title-input");
+const bodyInput = document.getElementById("body-input");
+const submitBtn = document.getElementById("submit-btn");
+const notesList = document.getElementById("notes-list");
 
-// Status Helper Functions
-function showStatus(message, type) {
-    statusP.textContent = message;
-    statusP.className = `status-${type}`;
-}
+let notes = [];
+let nextLocalId = -1;
+let activeRequests = 0;
 
-function clearStatus() {
-    statusP.textContent = '';
-    statusP.className = 'status-hidden';
-}
+// JSONPlaceholder simulates POST and DELETE operations.
+// New posts and deletions are not permanently saved by the API.
+// We use temporary negative IDs for locally created notes.
 
-function setButtonsDisabled(disabled) {
-    loadBtn.disabled = disabled;
-    submitBtn.disabled = disabled;
-}
 
-// Reusable async request function
+// 1. REUSABLE REQUEST FUNCTION
+
 async function request(url, options = {}) {
-    try {
-        const response = await fetch(url, options);
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+    const response = await fetch(url, {
+        ...options,
+        headers: {
+            Accept: "application/json",
+            ...(options.body
+                ? { "Content-Type": "application/json" }
+                : {}),
+            ...options.headers
         }
-        if (response.status === 204) {
-            return null;
-        }
-        return await response.json();
-    } catch (error) {
-        throw error;
+    });
+
+    // fetch() does not automatically throw for HTTP errors.
+    // Check response.ok and throw if the request failed.
+    if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
     }
+
+    const data = response.status === 204
+        ? null
+        : await response.json();
+
+    return {
+        data,
+        status: response.status
+    };
 }
 
-// Task 1: GET - Load 10 notes
-async function loadNotes() {
-    clearStatus();
-    showStatus('Loading notes...', 'loading');
-    setButtonsDisabled(true);
 
-    try {
-        const posts = await request(`${API_URL}?_limit=10`);
-        renderNotes(posts);
-        showStatus('Loaded 10 notes from the server.', 'success');
-    } catch (error) {
-        showStatus(`Failed to load notes: ${error.message}`, 'error');
-    } finally {
-        setButtonsDisabled(false);
-    }
+// 2. STATUS MESSAGE AND BUTTON HELPERS
+
+function setStatus(message, type = "") {
+    statusElement.textContent = message;
+    statusElement.className = `status ${type}`.trim();
 }
 
-// Task 2: POST - Create a note
-async function createNote(title, body) {
-    clearStatus();
-    showStatus('Creating note...', 'loading');
-    setButtonsDisabled(true);
+function setBusy(isBusy) {
+    loadBtn.disabled = isBusy;
+    submitBtn.disabled = isBusy;
 
-    try {
-        const newPost = {
-            title: title,
-            body: body,
-            userId: 1
-        };
-
-        const result = await request(API_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json; charset=UTF-8',
-            },
-            body: JSON.stringify(newPost)
-        });
-
-        // Add the returned note to the TOP of the list
-        prependNoteToDOM(result);
-        showStatus(`Note created (status 201, id ${result.id}).`, 'success');
-        noteForm.reset();
-    } catch (error) {
-        showStatus(`Failed to create note: ${error.message}`, 'error');
-    } finally {
-        setButtonsDisabled(false);
-    }
-}
-
-// Task 3: DELETE - Remove a note
-/* 
-  NOTE ON JSONPLACEHOLDER LIMITATION:
-  JSONPlaceholder is a mock API. When you create a note via POST, it simulates 
-  success and returns a fake id (like 101), but it does not actually save it to a database. 
-  Consequently, trying to send a DELETE request for a newly created mock id (>= 100) 
-  will return a 404 error from JSONPlaceholder. To provide a smooth user experience and 
-  pass UI checks, we catch deletion errors gracefully or allow deleting pre-existing items (1-100), 
-  removing them from the DOM regardless while informing the user if it was a mock item.
-*/
-async function deleteNote(id, listItem) {
-    clearStatus();
-    showStatus('Deleting note...', 'loading');
-    setButtonsDisabled(true);
-
-    try {
-        await request(`${API_URL}/${id}`, {
-            method: 'DELETE'
-        });
-
-        listItem.remove();
-        showStatus('Note successfully deleted.', 'success');
-        
-        if (notesList.children.length === 0) {
-            showEmptyState();
-        }
-    } catch (error) {
-        // Fallback for JSONPlaceholder mock IDs (IDs > 100 don't exist on server)
-        if (id > 100) {
-            listItem.remove();
-            showStatus('Note removed from UI (Mock API limitation: server does not persist created items).', 'success');
-            if (notesList.children.length === 0) {
-                showEmptyState();
-            }
-        } else {
-            showStatus(`Failed to delete note: ${error.message}`, 'error');
-        }
-    } finally {
-        setButtonsDisabled(false);
-    }
-}
-
-// Render Functions (using textContent only for user text)
-function renderNotes(posts) {
-    notesList.textContent = '';
-
-    if (!posts || posts.length === 0) {
-        showEmptyState();
-        return;
-    }
-
-    posts.forEach(post => {
-        appendNoteToDOM(post);
+    document.querySelectorAll(".delete-btn").forEach(button => {
+        button.disabled = isBusy;
     });
 }
 
-function appendNoteToDOM(post) {
-    const emptyMsg = document.getElementById('empty-state');
-    if (emptyMsg) {
-        emptyMsg.remove();
+function beginRequest(message) {
+    activeRequests++;
+    setBusy(true);
+    setStatus(message, "loading");
+}
+
+function endRequest() {
+    activeRequests = Math.max(0, activeRequests - 1);
+    setBusy(activeRequests > 0);
+}
+
+
+// 3. DISPLAY NOTES SAFELY
+
+function renderNotes() {
+    notesList.replaceChildren();
+
+    // Show an empty state when there are no notes.
+    if (notes.length === 0) {
+        const emptyItem = document.createElement("li");
+
+        emptyItem.className = "empty";
+        emptyItem.textContent =
+            "No notes found. Load notes or create a note.";
+
+        notesList.appendChild(emptyItem);
+        return;
     }
 
-    const li = document.createElement('li');
-    li.className = 'note-item';
-    li.dataset.id = post.id;
+    notes.forEach(note => {
+        const item = document.createElement("li");
+        item.className = "note";
 
-    const titleH3 = document.createElement('h3');
-    titleH3.textContent = post.title;
+        const heading = document.createElement("h3");
+        heading.textContent = note.title || "(Untitled note)";
 
-    const bodyP = document.createElement('p');
-    bodyP.textContent = post.body || '';
+        const body = document.createElement("p");
+        body.textContent = note.body || "No body provided.";
 
-    const deleteBtn = document.createElement('button');
-    deleteBtn.textContent = 'Delete';
-    deleteBtn.className = 'delete-btn';
-    deleteBtn.addEventListener('click', () => deleteNote(post.id, li));
+        const actions = document.createElement("div");
+        actions.className = "note-actions";
 
-    li.appendChild(titleH3);
-    li.appendChild(bodyP);
-    li.appendChild(deleteBtn);
+        const deleteButton = document.createElement("button");
 
-    notesList.appendChild(li);
+        deleteButton.type = "button";
+        deleteButton.className = "delete-btn";
+        deleteButton.textContent = "Delete";
+
+        deleteButton.setAttribute(
+            "aria-label",
+            `Delete note: ${note.title || "Untitled note"}`
+        );
+
+        deleteButton.addEventListener("click", () => {
+            deleteNote(note.id);
+        });
+
+        actions.appendChild(deleteButton);
+        item.append(heading, body, actions);
+
+        notesList.appendChild(item);
+    });
+
+    setBusy(activeRequests > 0);
 }
 
-function prependNoteToDOM(post) {
-    const emptyMsg = document.getElementById('empty-state');
-    if (emptyMsg) {
-        emptyMsg.remove();
+
+// 4. GET: LOAD NOTES
+
+async function loadNotes() {
+    beginRequest("Loading notes...");
+
+    try {
+        const result = await request(`${API_URL}?_limit=10`);
+
+        notes = result.data.map(post => ({
+            id: post.id,
+            title: post.title,
+            body: post.body
+        }));
+
+        renderNotes();
+
+        if (notes.length === 0) {
+            setStatus("No notes were found.", "");
+        } else {
+            setStatus(
+                `Loaded ${notes.length} notes from the server.`,
+                "success"
+            );
+        }
+    } catch (error) {
+        console.error("Error loading notes:", error);
+
+        setStatus(
+            "Sorry, we could not load notes. Check your connection and try again.",
+            "error"
+        );
+    } finally {
+        endRequest();
     }
-
-    const li = document.createElement('li');
-    li.className = 'note-item';
-    li.dataset.id = post.id;
-
-    const titleH3 = document.createElement('h3');
-    titleH3.textContent = post.title;
-
-    const bodyP = document.createElement('p');
-    bodyP.textContent = post.body || '';
-
-    const deleteBtn = document.createElement('button');
-    deleteBtn.textContent = 'Delete';
-    deleteBtn.className = 'delete-btn';
-    deleteBtn.addEventListener('click', () => deleteNote(post.id, li));
-
-    li.appendChild(titleH3);
-    li.appendChild(bodyP);
-    li.appendChild(deleteBtn);
-
-    notesList.insertBefore(li, notesList.firstChild);
 }
 
-function showEmptyState() {
-    notesList.textContent = '';
-    const li = document.createElement('li');
-    li.id = 'empty-state';
-    li.textContent = 'No notes available. Click "Load notes" to fetch records.';
-    li.className = 'empty-notice';
-    notesList.appendChild(li);
-}
 
-// Event Listeners
-loadBtn.addEventListener('click', loadNotes);
+// 5. POST: CREATE A NOTE
 
-noteForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    
+async function createNote(event) {
+    event.preventDefault();
+
     const title = titleInput.value.trim();
     const body = bodyInput.value.trim();
 
-    // Task 2 Validation: Title required, max 100 characters
+    // Validate the title before sending the request.
     if (!title) {
-        showStatus('Validation Error: Title is required.', 'error');
+        setStatus("Please enter a title.", "error");
         titleInput.focus();
         return;
     }
 
     if (title.length > 100) {
-        showStatus('Validation Error: Title must be 100 characters or less.', 'error');
+        setStatus(
+            "The title must not exceed 100 characters.",
+            "error"
+        );
+
         titleInput.focus();
         return;
     }
 
-    createNote(title, body);
-});
+    beginRequest("Creating note...");
 
-// Initial empty state check on load
-showEmptyState();
+    try {
+        const result = await request(API_URL, {
+            method: "POST",
+            body: JSON.stringify({
+                title: title,
+                body: body,
+                userId: 1
+            })
+        });
+
+        // JSONPlaceholder simulates creating a post.
+        // It does not permanently save the new post.
+        // Use a temporary negative ID to track this note locally.
+        const localNote = {
+            id: nextLocalId--,
+            title: result.data.title,
+            body: result.data.body
+        };
+
+        notes.unshift(localNote);
+
+        renderNotes();
+        noteForm.reset();
+
+        setStatus(
+            `Note created (status ${result.status}, id ${result.data.id}). ` +
+            "This demo API does not permanently save new notes.",
+            "success"
+        );
+    } catch (error) {
+        console.error("Error creating note:", error);
+
+        setStatus(
+            "Sorry, we could not create your note. Please try again.",
+            "error"
+        );
+    } finally {
+        endRequest();
+    }
+}
+
+
+// 6. DELETE: REMOVE A NOTE
+
+async function deleteNote(id) {
+    beginRequest("Deleting note...");
+
+    try {
+        // IMPORTANT:
+        // There is only ONE method property in this object.
+        // JSONPlaceholder accepts DELETE but does not permanently
+        // remove the post from its underlying dataset.
+        const result = await request(`${API_URL}/${id}`, {
+            method: "DELETE"
+        });
+
+        // Remove the note from our current page after success.
+        notes = notes.filter(note => note.id !== id);
+
+        renderNotes();
+
+        setStatus(
+            `Note removed from the current list (status ${result.status}).`,
+            "success"
+        );
+    } catch (error) {
+        console.error("Error deleting note:", error);
+
+        setStatus(
+            "Sorry, we could not delete the note. Please try again.",
+            "error"
+        );
+    } finally {
+        endRequest();
+    }
+}
+
+
+// 7. CONNECT THE BUTTONS AND FORM
+
+loadBtn.addEventListener("click", loadNotes);
+
+noteForm.addEventListener("submit", createNote);
+
+// Display the empty state when the page first opens.
+renderNotes();
