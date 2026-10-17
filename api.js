@@ -247,7 +247,7 @@ async function deleteNote(id) {
         // There is only ONE method property in this object.
         // JSONPlaceholder accepts DELETE but does not permanently
         // remove the post from its underlying dataset.
-        const result = await request(`${API_URL}/${id}`, {
+        const result = await request('${API_URL}/${id}', {
             method: "DELETE"
         });
 
